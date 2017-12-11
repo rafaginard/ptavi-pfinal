@@ -3,15 +3,17 @@
 
 from xml.sax import make_parser
 from xml.sax.handler import ContentHandler
+import socket
+import sys
 
 class XMLHandler(ContentHandler):
 
     def __init__(self):
         self.config = {}
         self.attrDict = {"account": ["username", "passwd"],
-                         "uaserver": ["ip","port"],
-                         "rtpaudio": ["port_r"],
-                         "regproxy": ["ip","port"],
+                         "uaserver": ["ip","puerto"],
+                         "rtpaudio": ["puerto"],
+                         "regproxy": ["ip","puerto"],
                          "log": ["path"],
                          "audio": ["path"]}
 
@@ -22,7 +24,11 @@ class XMLHandler(ContentHandler):
                 self.config[name + "_" + atribute] = attrs.get(atribute, "")
 
     def Get_Tags(self):
+
         return self.config
+
+
+
 
 if __name__ == "__main__":
 
