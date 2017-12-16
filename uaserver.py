@@ -13,7 +13,6 @@ class EchoHandler(socketserver.DatagramRequestHandler):
     """
     Echo server class
     """
-
     def Comprobar_Peticion(self):
         if len(self.DATA) == 3:
             condition_sip = self.DATA[1].split(":")[0] == ("sip")
@@ -26,6 +25,7 @@ class EchoHandler(socketserver.DatagramRequestHandler):
         return self.check
 
     def handle(self):
+        nonce = b"898989898798989898989"
         self.check = False
         line = self.rfile.read()
         print(line.decode('utf-8'))
@@ -34,7 +34,10 @@ class EchoHandler(socketserver.DatagramRequestHandler):
 
             if self.Comprobar_Peticion():
                 if self.DATA[0] == "REGISTER":
-                    self.wfile.write(b"SIP/2.0 200 OK\r\n\r\n")
+                    self.wfile.write(b"SIP/2.0 401 Unauthorized\r\n")
+                    self.wfile.write(b"WWW Authenticate:" +
+                                     b"Digest nonce=" + nonce)
+                    self.wfile.write(b"\r\n\r\n")
                 elif self.DATA[0] == "INVITE":
                     self.wfile.write(b"SIP/2.0 100 Trying\r\n\r\n")
                     self.wfile.write(b"SIP/2.0 180 Ringing\r\n\r\n")
