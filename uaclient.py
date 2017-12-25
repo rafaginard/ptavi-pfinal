@@ -49,7 +49,6 @@ def register_with_nonce():
             "Authorization: Digest response=" + nonce + "\r\n\r\n")
     my_socket.send(bytes(DATA, "utf-8"))
     log("Sent to " + Proxy_Ip + ":" + str(Proxy_Port), DATA)
-
 # Metodo INVITE
 def invite():
     DATA = ("INVITE sip:" + Invitation + " SIP/2.0\r\n" +
@@ -85,7 +84,6 @@ if __name__ == "__main__":
   Proxy_Port = int(cHandler.config["regproxy_puerto"])
 
 
-
 # Creamos el socket, lo configuramos y lo atamos a un servidor/puerto
 with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
     print("Enviando:", User_Name)
@@ -107,7 +105,6 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
 # Recibe datos del servidor.
     data = my_socket.recv(1024)
     Recieve = data.decode('utf-8').split(" ")
-    
     if Recieve[1] == "200":
         log("Recieved from " + Invitation + ":5555", data.decode('utf-8'))
         print(data.decode('utf-8'))
@@ -117,9 +114,10 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
     elif Recieve[1] == "401":
         log("Recieved from " + Proxy_Ip + ":" + str(Proxy_Port),
             data.decode('utf-8'))
-        print(data.decode('utf-8'))
         my_socket.connect((Proxy_Ip, Proxy_Port))
         register_with_nonce()
+        data = my_socket.recv(1024)
+        print(data.decode('utf-8'))
     else:
         log("Recieved from " + Invitation + ":5555", data.decode('utf-8'))
         print(data.decode('utf-8'))
