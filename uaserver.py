@@ -51,21 +51,14 @@ class EchoHandler(socketserver.DatagramRequestHandler):
 
 
     def handle(self):
-        nonce = b"898989898798989898989"
+
         self.check = False
         line = self.rfile.read()
         print(line.decode('utf-8'))
         if line:
             self.DATA = line.decode('utf-8').split(" ")
-
             if self.Comprobar_Peticion():
-                if self.DATA[0] == "REGISTER":
-                    self.wfile.write(b"SIP/2.0 401 Unauthorized\r\n")
-                    self.wfile.write(b"WWW Authenticate:" +
-                                     b"Digest nonce=" + nonce)
-                    self.wfile.write(b"\r\n\r\n")
-                    #AÑADIR AL DICCIONARIO
-                elif self.DATA[0] == "INVITE":
+                if self.DATA[0] == "INVITE":
                     self.wfile.write(b"SIP/2.0 100 Trying\r\n\r\n")
                     self.wfile.write(b"SIP/2.0 180 Ringing\r\n\r\n")
                     self.wfile.write(b"SIP/2.0 200 OK\r\n\r\n")
