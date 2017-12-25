@@ -107,7 +107,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
 # Recibe datos del servidor.
     data = my_socket.recv(1024)
     Recieve = data.decode('utf-8').split(" ")
-
+    
     if Recieve[1] == "200":
         log("Recieved from " + Invitation + ":5555", data.decode('utf-8'))
         print(data.decode('utf-8'))
