@@ -37,20 +37,23 @@ def log(action, data):
 
 # Metodo REGISTER
 def register():
-    DATA = ("REGISTER sip:" + User_Name + ":5555" + " SIP/2.0\r\n" +
+
+    DATA = ("REGISTER sip:" + User_Name + ":" + str(Port) + " SIP/2.0\r\n" +
             "Expires: " + EXPIRES + "\r\n\r\n")
     my_socket.send(bytes(DATA, "utf-8"))
     log("Sent to " + Proxy_Ip + ":" + str(Proxy_Port), DATA)
 
 def register_with_nonce():
+
     nonce = "123123212312321212123"
-    DATA = ("REGISTER sip:" + User_Name + ":5555" + " SIP/2.0\r\n" +
+    DATA = ("REGISTER sip:" + User_Name + ":" + str(Port) + " SIP/2.0\r\n" +
             "Expires: " + EXPIRES + "\r\n\r\n" +
             "Authorization: Digest response=" + nonce + "\r\n\r\n")
     my_socket.send(bytes(DATA, "utf-8"))
     log("Sent to " + Proxy_Ip + ":" + str(Proxy_Port), DATA)
 # Metodo INVITE
 def invite():
+
     DATA = ("INVITE sip:" + Invitation + " SIP/2.0\r\n" +
             "Content-Type: application/sdp\r\n\r\n" +
             "v=0\r\no=" + User_Name + "\r\ns=misesion" +
@@ -58,9 +61,16 @@ def invite():
     my_socket.send(bytes(DATA, "utf-8"))
     log("Sent to " + Server + ":" + str(Port), DATA)
 
+# Metodo ACK
+def ack():
+
+    DATA = ("ACK sip:" + Invitation + " SIP/2.0\r\n\r\n" )
+    my_socket.send(bytes(DATA, "utf-8"))
+    log("Sent to " + Server + ":" + str(Port), DATA)
 #Medtodo BYE
 def bye():
-    DATA = ("BYE sip:" + User_Name + ":5555" + " SIP/2.0\r\n\r\n")
+
+    DATA = ("BYE sip:" + User_Name + ":" + str(Port) + " SIP/2.0\r\n\r\n")
     my_socket.send(bytes(DATA, "utf-8"))
     log("Sent to " + Server + ":" + str(Port), DATA)
 
@@ -93,11 +103,11 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
         EXPIRES = sys.argv[3]
         register()
     elif sys.argv[2] == "INVITE":
-        my_socket.connect((Server, Port))
+        my_socket.connect((Proxy_Ip, Proxy_Port))
         Invitation = sys.argv[3]
         invite()
     elif sys.argv[2] == "BYE":
-        my_socket.connect((Server, Port))
+        my_socket.connect((Proxy_Ip, Proxy_Port))
         USER = sys.argv[3]
         bye()
 
@@ -105,12 +115,18 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
 # Recibe datos del servidor.
     data = my_socket.recv(1024)
     Recieve = data.decode('utf-8').split(" ")
+    print(Recieve)
     if Recieve[1] == "200":
         log("Recieved from " + Invitation + ":5555", data.decode('utf-8'))
         print(data.decode('utf-8'))
     elif Recieve[1] == "100":
         log("Recieved from " + Invitation + ":5555", data.decode('utf-8'))
         print(data.decode('utf-8'))
+        my_socket.connect((Proxy_Ip, Proxy_Port))
+        ack()
+        data = my_socket.recv(1024)
+        print(data.decode("utf-8"))
+        print("ENVIO UN ACK")
     elif Recieve[1] == "401":
         log("Recieved from " + Proxy_Ip + ":" + str(Proxy_Port),
             data.decode('utf-8'))
