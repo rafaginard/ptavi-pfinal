@@ -4,5 +4,5 @@
     <rtpaudio puerto="34543"/>
     <regproxy ip="" puerto="4567"/>
     <log path="ruta"/>
-    <audio path="file"/>
+    <audio path="cancion.mp3"/>
 </config>
