@@ -35,6 +35,10 @@ def log(action, data):
     log_list.append(Time_Format + action + " " +
                     new_message + "\r")
 
+
+def send_mp3():
+    pass
+
 # Metodo REGISTER
 def register():
 
@@ -56,7 +60,7 @@ def invite():
 
     DATA = ("INVITE sip:" + Invitation + " SIP/2.0\r\n" +
             "Content-Type: application/sdp\r\n\r\n" +
-            "v=0\r\no=" + User_Name + "\r\ns=misesion" +
+            "v=0\r\no=" + User_Name + " " + Server + "\r\ns=misesion" +
             "\r\nt=0\r\nm=audio " + Audio_Puerto + " RTP")
     my_socket.send(bytes(DATA, "utf-8"))
     log("Sent to " + Server + ":" + str(Port), DATA)
@@ -67,6 +71,7 @@ def ack():
     DATA = ("ACK sip:" + Invitation + " SIP/2.0\r\n\r\n" )
     my_socket.send(bytes(DATA, "utf-8"))
     log("Sent to " + Server + ":" + str(Port), DATA)
+    send_mp3()
 #Medtodo BYE
 def bye():
 
@@ -126,7 +131,6 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
         ack()
         data = my_socket.recv(1024)
         print(data.decode("utf-8"))
-        print("ENVIO UN ACK")
     elif Recieve[1] == "401":
         log("Recieved from " + Proxy_Ip + ":" + str(Proxy_Port),
             data.decode('utf-8'))
