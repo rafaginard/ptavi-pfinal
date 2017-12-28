@@ -53,19 +53,28 @@ class EchoHandler(socketserver.DatagramRequestHandler):
     def handle(self):
 
         self.check = False
+        user_to_send_ip = ""
+        user_audio_port = ""
         line = self.rfile.read()
         print(line.decode('utf-8'))
         if line:
             self.DATA = line.decode('utf-8').split(" ")
             if self.Comprobar_Peticion():
                 if self.DATA[0] == "INVITE":
+                    user_to_send_ip = self.DATA[4].split("\n")[0]
+                    user_audio_port = self.DATA[5]
+                    print(user_audio_port, user_to_send_ip)
                     self.wfile.write(b"SIP/2.0 100 Trying\r\n\r\n")
                     self.wfile.write(b"SIP/2.0 180 Ringing\r\n\r\n")
                     self.wfile.write(b"SIP/2.0 200 OK\r\n\r\n")
+                    self.wfile.write(sdp_message)
                 elif self.DATA[0] == "BYE":
                     self.wfile.write(b"SIP/2.0 200 OK\r\n\r\n")
                 elif self.DATA[0] == "ACK":
-                    self.wfile.write(b"RECIBIDO")
+                    aEjecutar = ("./mp32rtp -i " + user_to_send_ip +
+                                " -p " + user_audio_port)
+                    aEjecutar += " < " + fichero_audio
+                    os.system(aEjecutar)
                 elif self.DATA[0] != ("INVITE" or "ACK" or "BYE"):
                     self.wfile.write(b"SIP/2.0 405 Method Not Allowed\r\n\r\n")
             else:
@@ -82,7 +91,14 @@ if __name__ == "__main__":
 
     SERVER = cHandler.config["uaserver_ip"]
     PORT = int(cHandler.config["uaserver_puerto"])
-
+    User_Name = cHandler.config["account_username"]
+    Audio_Puerto = cHandler.config["rtpaudio_puerto"]
+    sdp_data = ("Content-Type: application/sdp\r\n\r\n" +
+                     "v=0\r\no=" + User_Name + " " + SERVER +
+                     "\r\ns=misesion" + "\r\nt=0\r\nm=audio " +
+                     Audio_Puerto + " RTP")
+    sdp_message = (bytes(sdp_data, "utf-8"))
+    fichero_audio = cHandler.config["audio_path"]
     # Creamos servidor de eco y escuchamos
     serv = socketserver.UDPServer((SERVER, PORT), EchoHandler)
     try:
