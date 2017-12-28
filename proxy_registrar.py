@@ -55,27 +55,38 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
             user_to_send = DATA[1].split(":")[1]
             user_who_invites = DATA[6].split("=")[1]
-            audio_port = DATA[10]
-            try:
-                user_to_send_ip = self.dicc_Data.get(user_to_send)[0]
-                user_to_send_port = self.dicc_Data.get(user_to_send)[1]
-                my_socket.connect((user_to_send_ip, int(user_to_send_port)))
-                Invitation = ("INVITE sip:" + user_to_send + " SIP/2.0\r\n" +
-                              "Content-Type: application/sdp\r\n\r\n" +
-                              "v=0\r\no=" + user_who_invites + "\r\ns=misesion" +
-                              "\r\nt=0\r\nm=audio " + audio_port + " RTP")
-                my_socket.send(bytes(Invitation, "utf-8"))
-                print(Invitation)
+            user_who_invites_ip = DATA[7]
+            audio_port = DATA[11]
+        #try:
+            user_to_send_ip = self.dicc_Data.get(user_to_send)[0]
+            user_to_send_port = self.dicc_Data.get(user_to_send)[1]
+            my_socket.connect((user_to_send_ip, int(user_to_send_port)))
+            Invitation = ("INVITE sip:" + user_to_send + " SIP/2.0\r\n" +
+                          "Content-Type: application/sdp\r\n\r\n" +
+                          "v=0\r\no=" + user_who_invites + " " +
+                          user_who_invites_ip + "\r\ns=misesion" +
+                          "\r\nt=0\r\nm=audio " + audio_port + " RTP")
+            my_socket.send(bytes(Invitation, "utf-8"))
+            print(Invitation)
+        #except TypeError:
+        #    self.wfile.write(b"SIP/2.0 404 User Not Found\r\n\r\n")
 
-                data = my_socket.recv(1024)
-                Recieve = data.decode('utf-8').split(" ")
-                if Recieve[1] ==  "100":
-                    self.wfile.write(b"SIP/2.0 100 Trying\r\n\r\n")
-                    self.wfile.write(b"SIP/2.0 180 Ringing\r\n\r\n")
-                    self.wfile.write(b"SIP/2.0 200 OK\r\n\r\n")
+            data = my_socket.recv(1024)
+            Recieve = data.decode('utf-8').split(" ")
+            #audio_port = Recieve[16]
+            print(Recieve)
+            sdp_data = ("Content-Type: application/sdp\r\n\r\n" +
+                             "v=0\r\no=" + user_to_send + " " +
+                             user_to_send_ip + "\r\ns=misesion" +
+                             "\r\nt=0\r\nm=audio " + audio_port + " RTP")
+            sdp_message = (bytes(sdp_data, "utf-8"))
+            if Recieve[1] ==  "100":
+                self.wfile.write(b"SIP/2.0 100 Trying\r\n\r\n")
+                self.wfile.write(b"SIP/2.0 180 Ringing\r\n\r\n")
+                self.wfile.write(b"SIP/2.0 200 OK\r\n\r\n" + sdp_message)
 
-            except TypeError:
-                self.wfile.write(b"SIP/2.0 404 User Not Found\r\n\r\n")
+
+
 
     def ack(self, DATA):
 
@@ -88,8 +99,6 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
                         " SIP/2.0\r\n\r\n")
             my_socket.send(bytes(Response, "utf-8"))
             print(Response)
-            data = my_socket.recv(1024)
-            print(data.decode("utf-8"))
 
     def handle(self):
         """
@@ -147,6 +156,7 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
             self.invite(DATA)
         elif DATA[0] == "ACK":
             self.ack(DATA)
+
 
 if __name__ == "__main__":
     # Listens at localhost ('') port 6001
