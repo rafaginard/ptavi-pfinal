@@ -6,9 +6,11 @@ Clase (y programa principal) para un servidor de eco en UDP simple
 
 from xml.sax import make_parser
 from xml.sax.handler import ContentHandler
+from proxy_registrar import Logger
 import os
 import socketserver
 import sys
+
 
 class XMLHandler(ContentHandler):
 
@@ -57,6 +59,7 @@ class EchoHandler(socketserver.DatagramRequestHandler):
         user_audio_port = ""
         line = self.rfile.read()
         print(line.decode('utf-8'))
+        #logger_data.action_received()
         if line:
             self.DATA = line.decode('utf-8').split(" ")
             if self.Comprobar_Peticion():
@@ -65,7 +68,7 @@ class EchoHandler(socketserver.DatagramRequestHandler):
                     user_audio_port = self.DATA[5]
                     self.wfile.write(b"SIP/2.0 100 Trying\r\n\r\n")
                     self.wfile.write(b"SIP/2.0 180 Ringing\r\n\r\n")
-                    self.wfile.write(b"SIP/2.0 200 OK\r\n\r\n")
+                    self.wfile.write(b"SIP/2.0 200 OK\r\n")
                     self.wfile.write(sdp_message)
                 elif self.DATA[0] == "BYE":
                     self.wfile.write(b"SIP/2.0 200 OK\r\n\r\n")
@@ -98,10 +101,16 @@ if __name__ == "__main__":
                 Audio_Puerto + " RTP")
     sdp_message = (bytes(sdp_data, "utf-8"))
     fichero_audio = cHandler.config["audio_path"]
+    file_log = cHandler.config["log_path"]
+    logger_data =  Logger()
+
+
     # Creamos servidor de eco y escuchamos
     serv = socketserver.UDPServer((SERVER, PORT), EchoHandler)
     try:
+        logger_data.start_log()
         print("Listening...")
         serv.serve_forever()
-    except:
+    except KeyboardInterrupt:
+        logger_data.finish_log()
         sys.exit("Usage: python3 server.py IP port audio_file")
