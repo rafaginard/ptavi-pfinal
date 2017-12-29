@@ -1,0 +1,8 @@
+<config>
+    <account username="maca@god" passwd="maca"/>
+    <uaserver ip="127.0.0.1" puerto="6666"/>
+    <rtpaudio puerto="6543"/>
+    <regproxy ip="" puerto="4567"/>
+    <log path="ruta"/>
+    <audio path="cancion.mp3"/>
+</config>
