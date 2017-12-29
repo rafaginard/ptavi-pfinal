@@ -3,9 +3,11 @@
 
 from xml.sax import make_parser
 from xml.sax.handler import ContentHandler
+import json
 import socket
 import sys
 import time
+import os
 
 class XMLHandler(ContentHandler):
 
@@ -33,12 +35,17 @@ def log(action, data):
     log_list = []
     new_message = data.replace("\r\n", " ")
     log_list.append(Time_Format + action + " " +
-                    new_message + "\r")
-
+    new_message + "\r")
+    with open("log.txt", "w") as data_file:
+        data_file.write(" ".join(log_list))
 
 def send_mp3():
-    pass
 
+    aEjecutar = ("./mp32rtp -i " + user_to_send_ip +
+                " -p " + user_audio_port)
+    aEjecutar += " < " + fichero_audio
+    os.system(aEjecutar)
+    log("Sent to " + user_to_send_ip + ":" + str(user_audio_port), DATA)
 # Metodo REGISTER
 def register():
 
@@ -71,13 +78,16 @@ def ack():
     DATA = ("ACK sip:" + Invitation + " SIP/2.0\r\n\r\n" )
     my_socket.send(bytes(DATA, "utf-8"))
     log("Sent to " + Server + ":" + str(Port), DATA)
-    send_mp3()
+
 #Medtodo BYE
 def bye():
 
-    DATA = ("BYE sip:" + User_Name + ":" + str(Port) + " SIP/2.0\r\n\r\n")
+    DATA = ("BYE sip:" + user_to_send + " SIP/2.0\r\n\r\n")
     my_socket.send(bytes(DATA, "utf-8"))
     log("Sent to " + Server + ":" + str(Port), DATA)
+    data = my_socket.recv(1024)
+    Recieve = data.decode('utf-8').split(" ")
+    print(data.decode("utf-8"))
 
 if __name__ == "__main__":
 
@@ -92,13 +102,16 @@ if __name__ == "__main__":
   Port = int(cHandler.config["uaserver_puerto"])
   User_Name = cHandler.config["account_username"]
   Audio_Puerto = cHandler.config["rtpaudio_puerto"]
+  fichero_audio = cHandler.config["audio_path"]
+  file_log = cHandler.config["log_path"]
+
   if cHandler.config["regproxy_ip"] == "":
       Proxy_Ip = "127.0.0.1"
   else:
       Proxy_Ip = cHandler.config["regproxy_ip"]
   Proxy_Port = int(cHandler.config["regproxy_puerto"])
 
-
+  log("Starting...", " ")
 # Creamos el socket, lo configuramos y lo atamos a un servidor/puerto
 with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
     print("Enviando:", User_Name)
@@ -113,22 +126,26 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
         invite()
     elif sys.argv[2] == "BYE":
         my_socket.connect((Proxy_Ip, Proxy_Port))
-        USER = sys.argv[3]
+        user_to_send = sys.argv[3]
         bye()
-
 
 # Recibe datos del servidor.
     data = my_socket.recv(1024)
     Recieve = data.decode('utf-8').split(" ")
-    print(Recieve)
+    #print(Recieve)
     if Recieve[1] == "200":
         log("Recieved from " + Invitation + ":5555", data.decode('utf-8'))
         print(data.decode('utf-8'))
     elif Recieve[1] == "100":
         log("Recieved from " + Invitation + ":5555", data.decode('utf-8'))
         print(data.decode('utf-8'))
+        user_to_send = Recieve[7].split("=")[2]
+        user_to_send_ip = Recieve[8].split("\r\n")[0]
+        user_audio_port = Recieve[9]
         my_socket.connect((Proxy_Ip, Proxy_Port))
         ack()
+        send_mp3()
+        bye()
         data = my_socket.recv(1024)
         print(data.decode("utf-8"))
     elif Recieve[1] == "401":
