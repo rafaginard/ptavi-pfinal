@@ -1,5 +1,5 @@
 <config>
     <server name="MiServidorPro" ip="" puerto="4567"/>
     <database path="ruta" passwdpath="admin"/>
-    <log path="ruta"/>
+    <log path="proxylog.txt"/>
 </config>
