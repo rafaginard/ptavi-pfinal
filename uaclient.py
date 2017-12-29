@@ -3,6 +3,7 @@
 
 from xml.sax import make_parser
 from xml.sax.handler import ContentHandler
+from proxy_registrar import Logger
 import json
 import socket
 import sys
@@ -29,15 +30,6 @@ class XMLHandler(ContentHandler):
     def Get_Tags(self):
         return self.config
 
-def log(action, data):
-    Time_Format = time.strftime("%Y%m%d%H%M%S ",
-    time.gmtime(time.time()))
-    log_list = []
-    new_message = data.replace("\r\n", " ")
-    log_list.append(Time_Format + action + " " +
-    new_message + "\r")
-    with open("log.txt", "w") as data_file:
-        data_file.write(" ".join(log_list))
 
 def send_mp3():
 
@@ -45,14 +37,16 @@ def send_mp3():
                 " -p " + user_audio_port)
     aEjecutar += " < " + fichero_audio
     os.system(aEjecutar)
-    log("Sent to " + user_to_send_ip + ":" + str(user_audio_port), DATA)
+    DATA = "Enviando fichero de audio."
+    logger.action_send(user_to_send_ip, user_audio_port, DATA)
+
 # Metodo REGISTER
 def register():
 
     DATA = ("REGISTER sip:" + User_Name + ":" + str(Port) + " SIP/2.0\r\n" +
             "Expires: " + EXPIRES + "\r\n\r\n")
     my_socket.send(bytes(DATA, "utf-8"))
-    log("Sent to " + Proxy_Ip + ":" + str(Proxy_Port), DATA)
+    logger.action_send(Proxy_Ip, Proxy_Port, DATA)
 
 def register_with_nonce():
 
@@ -61,7 +55,7 @@ def register_with_nonce():
             "Expires: " + EXPIRES + "\r\n\r\n" +
             "Authorization: Digest response=" + nonce + "\r\n\r\n")
     my_socket.send(bytes(DATA, "utf-8"))
-    log("Sent to " + Proxy_Ip + ":" + str(Proxy_Port), DATA)
+    logger.action_send(Proxy_Ip, Proxy_Port, DATA)
 # Metodo INVITE
 def invite():
 
@@ -70,24 +64,22 @@ def invite():
             "v=0\r\no=" + User_Name + " " + Server + "\r\ns=misesion" +
             "\r\nt=0\r\nm=audio " + Audio_Puerto + " RTP")
     my_socket.send(bytes(DATA, "utf-8"))
-    log("Sent to " + Server + ":" + str(Port), DATA)
+    logger.action_send(Proxy_Ip, Proxy_Port, DATA)
 
 # Metodo ACK
 def ack():
 
     DATA = ("ACK sip:" + Invitation + " SIP/2.0\r\n\r\n" )
     my_socket.send(bytes(DATA, "utf-8"))
-    log("Sent to " + Server + ":" + str(Port), DATA)
+    logger.action_send(Proxy_Ip, Proxy_Port, DATA)
 
 #Medtodo BYE
 def bye():
 
     DATA = ("BYE sip:" + user_to_send + " SIP/2.0\r\n\r\n")
     my_socket.send(bytes(DATA, "utf-8"))
-    log("Sent to " + Server + ":" + str(Port), DATA)
-    data = my_socket.recv(1024)
-    Recieve = data.decode('utf-8').split(" ")
-    print(data.decode("utf-8"))
+    logger.action_send(Proxy_Ip, Proxy_Port, DATA)
+
 
 if __name__ == "__main__":
 
@@ -111,10 +103,11 @@ if __name__ == "__main__":
       Proxy_Ip = cHandler.config["regproxy_ip"]
   Proxy_Port = int(cHandler.config["regproxy_puerto"])
 
-  log("Starting...", " ")
+  logger = Logger()
+  logger.start_log()
 # Creamos el socket, lo configuramos y lo atamos a un servidor/puerto
 with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
-    print("Enviando:", User_Name)
+
     if sys.argv[2] == "REGISTER":
         my_socket.connect((Proxy_Ip, Proxy_Port))
         Invitation = Proxy_Ip
@@ -129,15 +122,16 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
         user_to_send = sys.argv[3]
         bye()
 
+
 # Recibe datos del servidor.
     data = my_socket.recv(1024)
     Recieve = data.decode('utf-8').split(" ")
     #print(Recieve)
     if Recieve[1] == "200":
-        log("Recieved from " + Invitation + ":5555", data.decode('utf-8'))
+        logger.action_received(Proxy_Ip, Proxy_Port, data.decode("utf-8"))
         print(data.decode('utf-8'))
     elif Recieve[1] == "100":
-        log("Recieved from " + Invitation + ":5555", data.decode('utf-8'))
+        logger.action_received(Proxy_Ip, Proxy_Port, data.decode("utf-8"))
         print(data.decode('utf-8'))
         user_to_send = Recieve[7].split("=")[2]
         user_to_send_ip = Recieve[8].split("\r\n")[0]
@@ -149,12 +143,13 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
         data = my_socket.recv(1024)
         print(data.decode("utf-8"))
     elif Recieve[1] == "401":
-        log("Recieved from " + Proxy_Ip + ":" + str(Proxy_Port),
-            data.decode('utf-8'))
+        logger.action_received(Proxy_Ip, Proxy_Port, data.decode("utf-8"))
         my_socket.connect((Proxy_Ip, Proxy_Port))
         register_with_nonce()
         data = my_socket.recv(1024)
         print(data.decode('utf-8'))
     else:
-        log("Recieved from " + Invitation + ":5555", data.decode('utf-8'))
+        logger.action_received(Proxy_Ip, Proxy_Port, data.decode("utf-8"))
         print(data.decode('utf-8'))
+
+    logger.finish_log()
