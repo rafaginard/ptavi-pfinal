@@ -56,6 +56,11 @@ class Logger():
                   Message.replace("\r\n", " "))
         self.write_in_log(action + "\r")
 
+    def action_error(self, Ip, Port, Message):
+        actual_time = self.get_time()
+        action = (actual_time + Message + Ip + " port " + str(Port))
+        self.write_in_log(action + "\r")
+
 class XMLHandler(ContentHandler):
 
     def __init__(self):
@@ -79,6 +84,36 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
     """
     dicc_Data = {}
 
+    def update_database(self):
+        """
+        Convierte mi biblioteca de datos a un archivo json
+        """
+        with open(database, "w") as data_file:
+            for k, v in self.dicc_Data.items():
+                data_file.write(str(k) + ": " +
+                                str(v) + "\r")
+
+    def read_database(self):
+        """
+        Recoge los datos del archivo json (si existe) y los
+        vuelca en mi diccioario de datos
+        """
+        try:
+            with open(database, "r") as data_file:
+                for line in data_file:
+                    key = line.split(":")[0]
+                    Values = line.split("(")[1:]
+                    ip = "".join(Values)
+                    print(Values)
+                    print(ip)
+                    ip = line.split(":")[1]
+                    #self.dicc_Data[key] = (ip, port,
+                                           #"Date Register: " + Time_Format,
+                                           #"Expires: " + tiempo_exp)
+            #print(self.dicc_Data)
+        except (NameError, FileNotFoundError):
+            pass
+
     def check_server(self):
         """
         Comprueba los usuarios caducados
@@ -93,17 +128,74 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
             for user in dicc_Temp:
                 if dicc_Temp[user] < Time_Format:
                     del self.dicc_Data[user]
+            self.update_database()
+
+    def register(self, DATA):
+        nonce = b"898989898798989898989"
+        Time_Format = time.strftime("%Y-%m-%d %H:%M:%S",
+                                    time.gmtime(time.time()))
+
+        ip = self.client_address[0]
+        user = DATA[1].split(":")[1]
+        port = DATA[1].split(":")[2]
+        proxy_log.action_received(ip, port, " ".join(DATA))
+        if user in self.dicc_Data:
+            tiempo_exp = float(DATA[4]) + time.time()
+            tiempo_exp = time.strftime("%Y-%m-%d %H:%M:%S",
+                                       time.gmtime(tiempo_exp))
+            print(" ".join(DATA), "\r\n\r\n")
+            self.dicc_Data[user] = (ip, port,
+                                    "Date Register: " + Time_Format,
+                                    "Expires: " + tiempo_exp)
+            self.update_database()
+            self.wfile.write(b"SIP/2.0 200 OK\r\n\r\n")
+        else:
+            if len(DATA) == 5:
+                if int(DATA[4]) == 0:
+                    try:
+                        print("Usuario borrado:", user, "\r\n\r\n")
+                        del self.dicc_Data[user]
+                        self.wfile.write(b"SIP/2.0 200 OK\r\n\r\n")
+                        proxy_log.action_send(ip, port, "SIP/2.0 200 OK")
+                        self.update_database()
+                    except KeyError:
+                        self.wfile.write(b"SIP/2.0 404 User Not Found\r\n\r\n")
+                        proxy_log.action_send(ip, port, "SIP/2.0 404 User Not FOund")
+                elif int(DATA[4]) >= 0:
+                    print(" ".join(DATA), "\r\n\r\n")
+                    Response = ("SIP/2.0 401 Unauthorized\r\n" +
+                                "WWW Authenticate:" + "Digest nonce=" +
+                                nonce.decode("utf-8") + "\r\n\r\n")
+
+                    self.wfile.write(b"SIP/2.0 401 Unauthorized\r\n")
+                    self.wfile.write(b"WWW Authenticate:" +
+                                     b"Digest nonce=" + nonce)
+                    self.wfile.write(b"\r\n\r\n")
+                    proxy_log.action_send(ip, port, Response)
+            elif len(DATA) == 8:
+                tiempo_exp = float(DATA[4]) + time.time()
+                tiempo_exp = time.strftime("%Y-%m-%d %H:%M:%S",
+                                           time.gmtime(tiempo_exp))
+                print(" ".join(DATA), "\r\n\r\n")
+                self.dicc_Data[user] = (self.client_address[0],
+                                        port,
+                                        "Time Register: " + Time_Format,
+                                        "Expires: " + tiempo_exp)
+                self.update_database()
+                self.wfile.write(b"SIP/2.0 200 OK\r\n\r\n")
+                proxy_log.action_received(ip, port, " ".join(DATA))
 
     def invite(self, DATA):
 
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
-            _to_send = DATA[1].split(":")[1]
-            _who_invites = DATA[6].split("=")[1]
-            _who_invites_ip = DATA[7]
-            _who_invites_port = self.dicc_Data.get(_who_invites)[1]
-            audio_port = DATA[11]
-            proxy_log.action_received(_who_invites_ip, _who_invites_port, " ".join(DATA))
             try:
+                _to_send = DATA[1].split(":")[1]
+                _who_invites = DATA[6].split("=")[1]
+                _who_invites_ip = DATA[7]
+                _who_invites_port = self.dicc_Data.get(_who_invites)[1]
+                audio_port = DATA[11]
+                proxy_log.action_received(_who_invites_ip, _who_invites_port, " ".join(DATA))
+
                 _to_send_ip = self.dicc_Data.get(_to_send)[0]
                 _to_send_port = self.dicc_Data.get(_to_send)[1]
                 my_socket.connect((_to_send_ip, int(_to_send_port)))
@@ -124,8 +216,10 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
                 print(data.decode("utf-8"))
                 if Recieve[1] ==  "100":
                     self.wfile.write(data)
-            except TypeError:
+            except (TypeError, ConnectionRefusedError):
                 self.wfile.write(b"SIP/2.0 404 User Not Found\r\n\r\n")
+                action = "No server listening at "
+                proxy_log.action_error(_to_send_ip, _to_send_port, action)
 
     def ack(self, DATA):
 
@@ -158,74 +252,44 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
             self.wfile.write(data)
             print(data.decode("utf-8"))
 
+    def Comprobar_Peticion(self, DATA):
+        check = False
+        if len(DATA) >= 3:
+            condition_sip = DATA[1].split(":")[0] == ("sip")
+            #condition_final = self.DATA[2] == ("SIP/2.0\r\n")
+            condition_arroba = False
+            if DATA[1].find("@") != -1:
+                condition_arroba = True
+            if condition_sip and condition_arroba:
+                check = True
+        return check
+
     def handle(self):
         """
         handle method of the server class
         (all requests will be handled by this method)
         """
-        Time_Format = time.strftime("%Y-%m-%d %H:%M:%S",
-                                    time.gmtime(time.time()))
-        nonce = b"898989898798989898989"
+
         DATA = []
+        #self.read_database()
         self.check_server()
         for line in self.rfile:
             DATA.append(line.decode('utf-8'))
         DATA = "".join(DATA).split()
         #print(DATA)
-
-        if DATA[0] == "REGISTER":
-            ip = self.client_address[0]
-            user = DATA[1].split(":")[1]
-            port = DATA[1].split(":")[2]
-            proxy_log.action_received(ip, port, " ".join(DATA))
-            if user in self.dicc_Data:
-                tiempo_exp = float(DATA[4]) + time.time()
-                tiempo_exp = time.strftime("%Y-%m-%d %H:%M:%S",
-                                           time.gmtime(tiempo_exp))
-                print(" ".join(DATA), "\r\n\r\n")
-                self.dicc_Data[user] = (ip, port,
-                                        "Time Register: " + Time_Format,
-                                        "Expires: " + tiempo_exp)
-                self.wfile.write(b"SIP/2.0 200 OK\r\n\r\n")
-            else:
-                if len(DATA) == 5:
-                    if int(DATA[4]) == 0:
-                        try:
-                            print("Usuario borrado:", user, "\r\n\r\n")
-                            del self.dicc_Data[user]
-                            self.wfile.write(b"SIP/2.0 200 OK\r\n\r\n")
-                            proxy_log.action_send(ip, port, "SIP/2.0 200 OK")
-                        except KeyError:
-                            self.wfile.write(b"SIP/2.0 404 User Not Found\r\n\r\n")
-                            proxy_log.action_send(ip, port, "SIP/2.0 404 User Not FOund")
-                    elif int(DATA[4]) >= 0:
-                        print(" ".join(DATA), "\r\n\r\n")
-                        Response = ("SIP/2.0 401 Unauthorized\r\n" +
-                                    "WWW Authenticate:" + "Digest nonce=" +
-                                    nonce.decode("utf-8") + "\r\n\r\n")
-
-                        self.wfile.write(b"SIP/2.0 401 Unauthorized\r\n")
-                        self.wfile.write(b"WWW Authenticate:" +
-                                         b"Digest nonce=" + nonce)
-                        self.wfile.write(b"\r\n\r\n")
-                        proxy_log.action_send(ip, port, Response)
-                elif len(DATA) == 8:
-                    tiempo_exp = float(DATA[4]) + time.time()
-                    tiempo_exp = time.strftime("%Y-%m-%d %H:%M:%S",
-                                               time.gmtime(tiempo_exp))
-                    print(" ".join(DATA), "\r\n\r\n")
-                    self.dicc_Data[user] = (self.client_address[0],
-                                            port,
-                                            "Time Register: " + Time_Format,
-                                            "Expires: " + tiempo_exp)
-                    self.wfile.write(b"SIP/2.0 200 OK\r\n\r\n")
-                    proxy_log.action_received(ip, port, " ".join(DATA))
-        elif DATA[0] == "INVITE":
-            self.invite(DATA)
-        elif DATA[0] == "ACK":
-            self.ack(DATA)
-        elif DATA[0] == "BYE":
-            self.bye(DATA)
+        if self.Comprobar_Peticion(DATA):
+            if DATA[0] == "REGISTER":
+                self.register(DATA)
+            elif DATA[0] == "INVITE":
+                self.invite(DATA)
+            elif DATA[0] == "ACK":
+                self.ack(DATA)
+            elif DATA[0] == "BYE":
+                self.bye(DATA)
+            elif DATA[0] != ("INVITE" or "ACK" or "BYE" or "REGISTER"):
+                self.wfile.write(b"SIP/2.0 405 Method Not Allowed\r\n\r\n")
+        else:
+            self.wfile.write(b"SIP/2.0 400 Bad Request\r\n\r\n")
 
 if __name__ == "__main__":
     # Listens at localhost ('') port 6001
@@ -242,6 +306,8 @@ if __name__ == "__main__":
     else:
         SERVER = cHandler.config["server_ip"]
     PORT = int(cHandler.config["server_puerto"])
+    database = cHandler.config["database_path"]
+    passwd_database = cHandler.config["database_passwdpath"]
     serv = socketserver.UDPServer((SERVER, PORT), SIPRegisterHandler)
     proxy_log.start_log()
     try:
