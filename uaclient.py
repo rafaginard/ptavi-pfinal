@@ -107,25 +107,32 @@ if __name__ == "__main__":
   logger.start_log()
 # Creamos el socket, lo configuramos y lo atamos a un servidor/puerto
 with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
-
-    if sys.argv[2] == "REGISTER":
-        my_socket.connect((Proxy_Ip, Proxy_Port))
-        Invitation = Proxy_Ip
-        EXPIRES = sys.argv[3]
-        register()
-    elif sys.argv[2] == "INVITE":
-        my_socket.connect((Proxy_Ip, Proxy_Port))
-        Invitation = sys.argv[3]
-        invite()
-    elif sys.argv[2] == "BYE":
-        my_socket.connect((Proxy_Ip, Proxy_Port))
-        user_to_send = sys.argv[3]
-        bye()
+    my_socket.connect((Proxy_Ip, Proxy_Port))
+    try:
+        if sys.argv[2] == "REGISTER":
+            Invitation = Proxy_Ip
+            EXPIRES = sys.argv[3]
+            register()
+        elif sys.argv[2] == "INVITE":
+            Invitation = sys.argv[3]
+            invite()
+        elif sys.argv[2] == "BYE":
+            user_to_send = sys.argv[3]
+            bye()
+        else:
+            sys.exit("Peticion Incorrecta")
+    except IndexError:
+        sys.exit("Usage: python uaclient.py config method option")
 
 
 # Recibe datos del servidor.
-    data = my_socket.recv(1024)
-    Recieve = data.decode('utf-8').split(" ")
+    try:
+        data = my_socket.recv(1024)
+        Recieve = data.decode('utf-8').split(" ")
+    except ConnectionRefusedError:
+        action = "No server listening at "
+        logger.action_error(Proxy_Ip, Proxy_Port, action)
+        sys.exit("Server is not listening")
     #print(Recieve)
     if Recieve[1] == "200":
         logger.action_received(Proxy_Ip, Proxy_Port, data.decode("utf-8"))
@@ -141,6 +148,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
         send_mp3()
         bye()
         data = my_socket.recv(1024)
+        logger.action_received(Proxy_Ip, Proxy_Port, data.decode("utf-8"))
         print(data.decode("utf-8"))
     elif Recieve[1] == "401":
         logger.action_received(Proxy_Ip, Proxy_Port, data.decode("utf-8"))
