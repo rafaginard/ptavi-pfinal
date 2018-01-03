@@ -90,7 +90,7 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
         """
         with open(database, "w") as data_file:
             for k, v in self.dicc_Data.items():
-                data_file.write(str(k) + ": " +
+                data_file.write(str(k) + "---> " +
                                 str(v) + "\r")
 
     def read_database(self):
@@ -100,12 +100,17 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
         """
         try:
             with open(database, "r") as data_file:
+
                 for line in data_file:
-                    key = line.split(":")[0]
-                    Values = line.split("(")[1:]
-                    ip = "".join(Values)
+                    key = line.split("--->")[0]
+                    Values = line.split("--->")[1]
+
+                    print(Values[3:Values.find("'")])
+                    ip = Values[3:Values.find("'")]
+                    Values -= len(ip)
                     print(Values)
-                    print(ip)
+                    #print(ip, port)
+
                     ip = line.split(":")[1]
                     #self.dicc_Data[key] = (ip, port,
                                            #"Date Register: " + Time_Format,
@@ -273,6 +278,7 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
         DATA = []
         #self.read_database()
         self.check_server()
+        print(self.dicc_Data)
         for line in self.rfile:
             DATA.append(line.decode('utf-8'))
         DATA = "".join(DATA).split()
