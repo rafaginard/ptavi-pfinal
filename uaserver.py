@@ -17,9 +17,9 @@ class XMLHandler(ContentHandler):
     def __init__(self):
         self.config = {}
         self.attrDict = {"account": ["username", "passwd"],
-                         "uaserver": ["ip","puerto"],
+                         "uaserver": ["ip", "puerto"],
                          "rtpaudio": ["puerto"],
-                         "regproxy": ["ip","puerto"],
+                         "regproxy": ["ip", "puerto"],
                          "log": ["path"],
                          "audio": ["path"]}
 
@@ -33,6 +33,7 @@ class XMLHandler(ContentHandler):
 
         return self.config
 
+
 class EchoHandler(socketserver.DatagramRequestHandler):
     """
     Echo server class
@@ -43,7 +44,6 @@ class EchoHandler(socketserver.DatagramRequestHandler):
         check = False
         if len(DATA) >= 3:
             condition_sip = DATA[1].split(":")[0] == ("sip")
-            #condition_final = self.DATA[2] == ("SIP/2.0\r\n")
             condition_arroba = False
             if DATA[1].find("@") != -1:
                 condition_arroba = True
@@ -57,13 +57,14 @@ class EchoHandler(socketserver.DatagramRequestHandler):
         user_audio_port = ""
         line = self.rfile.read()
         print(line.decode('utf-8'))
-        #logger_data.action_received()
+        # logger_data.action_received()
         if line:
             DATA = line.decode('utf-8').split(" ")
             if self.Comprobar_Peticion(DATA):
                 if DATA[0] == "INVITE":
                     user_to_send_ip = DATA[4].split("\n")[0]
                     user_audio_port = DATA[5]
+#                   logger_data.action_received()
                     self.wfile.write(b"SIP/2.0 100 Trying\r\n\r\n")
                     self.wfile.write(b"SIP/2.0 180 Ringing\r\n\r\n")
                     self.wfile.write(b"SIP/2.0 200 OK\r\n")
@@ -72,7 +73,7 @@ class EchoHandler(socketserver.DatagramRequestHandler):
                     self.wfile.write(b"SIP/2.0 200 OK\r\n\r\n")
                 elif DATA[0] == "ACK":
                     aEjecutar = ("./mp32rtp -i " + user_to_send_ip +
-                                " -p " + user_audio_port)
+                                 " -p " + user_audio_port)
                     aEjecutar += " < " + fichero_audio
                     os.system(aEjecutar)
                 elif DATA[0] != ("INVITE" or "ACK" or "BYE"):
@@ -89,7 +90,7 @@ if __name__ == "__main__":
     parser.setContentHandler(cHandler)
     try:
         parser.parse(open(sys.argv[1]))
-    except IndexError:
+    except (IndexError, FileNotFoundError):
         sys.exit("Usage: python uaserver.py config")
 
     SERVER = cHandler.config["uaserver_ip"]
@@ -103,8 +104,7 @@ if __name__ == "__main__":
     sdp_message = (bytes(sdp_data, "utf-8"))
     fichero_audio = cHandler.config["audio_path"]
     file_log = cHandler.config["log_path"]
-    logger_data =  Logger()
-
+    logger_data = Logger()
 
     # Creamos servidor de eco y escuchamos
     serv = socketserver.UDPServer((SERVER, PORT), EchoHandler)
