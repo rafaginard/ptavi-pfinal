@@ -20,8 +20,7 @@ class Logger():
         self.log = log
 
     def get_time(self):
-        Time_Format = time.strftime("%Y%m%d%H%M%S ",
-        time.gmtime(time.time()))
+        Time_Format = time.strftime("%Y%m%d%H%M%S ", time.gmtime(time.time()))
         return Time_Format
 
     def write_in_log(self, action):
@@ -34,24 +33,24 @@ class Logger():
 
     def start_log(self):
         actual_time = self.get_time()
-        action = (actual_time + " Starting...")
+        action = (actual_time + "Starting...")
         self.write_in_log(action + "\r")
 
     def finish_log(self):
         actual_time = self.get_time()
-        action = (actual_time + " Finishing...")
+        action = (actual_time + "Finishing...")
         self.write_in_log(action + "\r")
 
     def action_send(self, Ip_send, Port_send, Message):
         actual_time = self.get_time()
-        action = (actual_time + " Send to " +
+        action = (actual_time + "Send to " +
                   Ip_send + ":" + str(Port_send) + ": " +
                   Message.replace("\r\n", " "))
         self.write_in_log(action + "\r")
 
     def action_received(self, Ip_recv, Port_recv, Message):
         actual_time = self.get_time()
-        action = (actual_time + " Received from " +
+        action = (actual_time + "Received from " +
                   Ip_recv + ":" + str(Port_recv) + ": " +
                   Message.replace("\r\n", " "))
         self.write_in_log(action + "\r")
@@ -61,12 +60,13 @@ class Logger():
         action = (actual_time + Message + Ip + " port " + str(Port))
         self.write_in_log(action + "\r")
 
+
 class XMLHandler(ContentHandler):
 
     def __init__(self):
         self.config = {}
         self.attrDict = {"server": ["name", "ip", "puerto"],
-                         "database": ["path","passwdpath"],
+                         "database": ["path", "passwdpath"],
                          "log": ["path"]}
 
     def startElement(self, name, attrs):
@@ -77,6 +77,7 @@ class XMLHandler(ContentHandler):
 
     def Get_Tags(self):
         return self.config
+
 
 class SIPRegisterHandler(socketserver.DatagramRequestHandler):
     """
@@ -109,13 +110,13 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
                     ip = Values[3:Values.find("'")]
                     Values -= len(ip)
                     print(Values)
-                    #print(ip, port)
+                    # print(ip, port)
 
                     ip = line.split(":")[1]
-                    #self.dicc_Data[key] = (ip, port,
-                                           #"Date Register: " + Time_Format,
-                                           #"Expires: " + tiempo_exp)
-            #print(self.dicc_Data)
+                    # self.dicc_Data[key] = (ip, port,
+                    # "Date Register: " + Time_Format,
+                    # "Expires: " + tiempo_exp)
+                    # print(self.dicc_Data)
         except (NameError, FileNotFoundError):
             pass
 
@@ -165,7 +166,8 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
                         self.update_database()
                     except KeyError:
                         self.wfile.write(b"SIP/2.0 404 User Not Found\r\n\r\n")
-                        proxy_log.action_send(ip, port, "SIP/2.0 404 User Not FOund")
+                        Message = "SIP/2.0 404 User Not FOund"
+                        proxy_log.action_send(ip, port, Message)
                 elif int(DATA[4]) >= 0:
                     print(" ".join(DATA), "\r\n\r\n")
                     Response = ("SIP/2.0 401 Unauthorized\r\n" +
@@ -214,12 +216,13 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
                 print(Invitation)
 
                 data = my_socket.recv(1024)
+                new_data = data.decode("utf-8")
                 Recieve = data.decode('utf-8').split(" ")
-                proxy_log.action_received(_to_send_ip, _to_send_port, data.decode("utf-8"))
-                #print(Recieve)
+                proxy_log.action_received(_to_send_ip, _to_send_port, new_data)
+                # print(Recieve)
 
                 print(data.decode("utf-8"))
-                if Recieve[1] ==  "100":
+                if Recieve[1] == "100":
                     self.wfile.write(data)
             except (TypeError, ConnectionRefusedError):
                 self.wfile.write(b"SIP/2.0 404 User Not Found\r\n\r\n")
@@ -252,8 +255,9 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
             proxy_log.action_send(_to_send_ip, _to_send_port, Response)
             print(Response)
             data = my_socket.recv(1024)
+            new_data = data.decode("utf-8")
             Recieve = data.decode('utf-8').split(" ")
-            proxy_log.action_received(_to_send_ip, _to_send_port, data.decode("utf-8"))
+            proxy_log.action_received(_to_send_ip, _to_send_port, new_data)
             self.wfile.write(data)
             print(data.decode("utf-8"))
 
@@ -261,7 +265,7 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
         check = False
         if len(DATA) >= 3:
             condition_sip = DATA[1].split(":")[0] == ("sip")
-            #condition_final = self.DATA[2] == ("SIP/2.0\r\n")
+            # condition_final = self.DATA[2] == ("SIP/2.0\r\n")
             condition_arroba = False
             if DATA[1].find("@") != -1:
                 condition_arroba = True
@@ -276,13 +280,13 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
         """
 
         DATA = []
-        #self.read_database()
+        # self.read_database()
         self.check_server()
-        print(self.dicc_Data)
+        # print(self.dicc_Data)
         for line in self.rfile:
             DATA.append(line.decode('utf-8'))
         DATA = "".join(DATA).split()
-        #print(DATA)
+
         if self.Comprobar_Peticion(DATA):
             if DATA[0] == "REGISTER":
                 self.register(DATA)
@@ -303,7 +307,10 @@ if __name__ == "__main__":
     parser = make_parser()
     cHandler = XMLHandler()
     parser.setContentHandler(cHandler)
-    parser.parse(open(sys.argv[1]))
+    try:
+        parser.parse(open(sys.argv[1]))
+    except (IndexError, FileNotFoundError):
+        sys.exit("Usage: python proxy_registrar.py config")
 
     file_log = cHandler.config["log_path"]
     proxy_log = Logger()
