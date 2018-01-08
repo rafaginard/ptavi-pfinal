@@ -10,14 +10,15 @@ import sys
 import time
 import os
 
+
 class XMLHandler(ContentHandler):
 
     def __init__(self):
         self.config = {}
         self.attrDict = {"account": ["username", "passwd"],
-                         "uaserver": ["ip","puerto"],
+                         "uaserver": ["ip", "puerto"],
                          "rtpaudio": ["puerto"],
-                         "regproxy": ["ip","puerto"],
+                         "regproxy": ["ip", "puerto"],
                          "log": ["path"],
                          "audio": ["path"]}
 
@@ -34,29 +35,36 @@ class XMLHandler(ContentHandler):
 def send_mp3():
 
     aEjecutar = ("./mp32rtp -i " + user_to_send_ip +
-                " -p " + user_audio_port)
+                 " -p " + user_audio_port)
     aEjecutar += " < " + fichero_audio
     os.system(aEjecutar)
     DATA = "Enviando fichero de audio."
     logger.action_send(user_to_send_ip, user_audio_port, DATA)
 
-# Metodo REGISTER
-def register():
 
+def register():
+    """
+    Se llama a este metodo cuando quiero registrarme en el servidor
+    proxy
+    """
     DATA = ("REGISTER sip:" + User_Name + ":" + str(Port) + " SIP/2.0\r\n" +
             "Expires: " + EXPIRES + "\r\n\r\n")
     my_socket.send(bytes(DATA, "utf-8"))
     logger.action_send(Proxy_Ip, Proxy_Port, DATA)
 
-def register_with_nonce():
 
+def register_with_nonce():
+    """
+    Responde al 401 y autoriza el registro
+    """
     nonce = "123123212312321212123"
     DATA = ("REGISTER sip:" + User_Name + ":" + str(Port) + " SIP/2.0\r\n" +
             "Expires: " + EXPIRES + "\r\n\r\n" +
             "Authorization: Digest response=" + nonce + "\r\n\r\n")
     my_socket.send(bytes(DATA, "utf-8"))
     logger.action_send(Proxy_Ip, Proxy_Port, DATA)
-# Metodo INVITE
+
+
 def invite():
 
     DATA = ("INVITE sip:" + Invitation + " SIP/2.0\r\n" +
@@ -66,14 +74,14 @@ def invite():
     my_socket.send(bytes(DATA, "utf-8"))
     logger.action_send(Proxy_Ip, Proxy_Port, DATA)
 
-# Metodo ACK
+
 def ack():
 
-    DATA = ("ACK sip:" + Invitation + " SIP/2.0\r\n\r\n" )
+    DATA = ("ACK sip:" + Invitation + " SIP/2.0\r\n\r\n")
     my_socket.send(bytes(DATA, "utf-8"))
     logger.action_send(Proxy_Ip, Proxy_Port, DATA)
 
-#Medtodo BYE
+
 def bye():
 
     DATA = ("BYE sip:" + user_to_send + " SIP/2.0\r\n\r\n")
@@ -83,28 +91,28 @@ def bye():
 
 if __name__ == "__main__":
 
-# Se parsea el fichero XML
-  parser = make_parser()
-  cHandler = XMLHandler()
-  parser.setContentHandler(cHandler)
-  parser.parse(open(sys.argv[1]))
+    parser = make_parser()
+    cHandler = XMLHandler()
+    parser.setContentHandler(cHandler)
+    parser.parse(open(sys.argv[1]))
 
-# Cogemos la variables que necesitamos para contactar con el servidor
-  Server = cHandler.config["uaserver_ip"]
-  Port = int(cHandler.config["uaserver_puerto"])
-  User_Name = cHandler.config["account_username"]
-  Audio_Puerto = cHandler.config["rtpaudio_puerto"]
-  fichero_audio = cHandler.config["audio_path"]
-  file_log = cHandler.config["log_path"]
+#   Cogemos la variables que necesitamos para contactar con el servidor
+    Server = cHandler.config["uaserver_ip"]
+    Port = int(cHandler.config["uaserver_puerto"])
+    User_Name = cHandler.config["account_username"]
+    Audio_Puerto = cHandler.config["rtpaudio_puerto"]
+    fichero_audio = cHandler.config["audio_path"]
+    file_log = cHandler.config["log_path"]
 
-  if cHandler.config["regproxy_ip"] == "":
-      Proxy_Ip = "127.0.0.1"
-  else:
-      Proxy_Ip = cHandler.config["regproxy_ip"]
-  Proxy_Port = int(cHandler.config["regproxy_puerto"])
+    if cHandler.config["regproxy_ip"] == "":
+        Proxy_Ip = "127.0.0.1"
+    else:
+        Proxy_Ip = cHandler.config["regproxy_ip"]
 
-  logger = Logger()
-  logger.start_log()
+    Proxy_Port = int(cHandler.config["regproxy_puerto"])
+
+    logger = Logger()
+    logger.start_log()
 # Creamos el socket, lo configuramos y lo atamos a un servidor/puerto
 with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
     my_socket.connect((Proxy_Ip, Proxy_Port))
@@ -120,7 +128,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
             user_to_send = sys.argv[3]
             bye()
         else:
-            sys.exit("Peticion Incorrecta")
+            sys.exit("Usage: python uaclient.py config method option")
     except IndexError:
         sys.exit("Usage: python uaclient.py config method option")
 
@@ -133,7 +141,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
         action = "No server listening at "
         logger.action_error(Proxy_Ip, Proxy_Port, action)
         sys.exit("Server is not listening")
-    #print(Recieve)
+
     if Recieve[1] == "200":
         logger.action_received(Proxy_Ip, Proxy_Port, data.decode("utf-8"))
         print(data.decode('utf-8'))
