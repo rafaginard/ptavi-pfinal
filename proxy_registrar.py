@@ -111,22 +111,16 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
         """
         try:
             with open(database, "r") as data_file:
-
                 for line in data_file:
                     key = line.split("--->")[0]
                     Values = line.split("--->")[1]
-
-                    print(Values[3:Values.find("'")])
-                    ip = Values[3:Values.find("'")]
-                    Values -= len(ip)
-                    print(Values)
-                    # print(ip, port)
-
-                    ip = line.split(":")[1]
-                    # self.dicc_Data[key] = (ip, port,
-                    # "Date Register: " + Time_Format,
-                    # "Expires: " + tiempo_exp)
-                    # print(self.dicc_Data)
+                    V = Values.split(",")
+                    ip = V[0].split("(")[1]
+                    port = V[1]
+                    time_register = V[2]
+                    time_expired = V[3].split(")")[0]
+                    self.dicc_Data[key] = (ip, port, float(time_register),
+                                           float(time_expired))
         except (NameError, FileNotFoundError):
             pass
 
@@ -134,7 +128,7 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
 
         contra = self.passwd_data[user]
         h = hashlib.sha1(bytes(contra, "utf-8"))
-        h.update(bytes(nonce + "\r\n\r\n" , "utf-8"))
+        h.update(bytes(nonce, "utf-8"))
         return h.hexdigest()
 
     def check_server(self):
@@ -142,12 +136,11 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
         Comprueba los usuarios caducados
         """
         dicc_Temp = {}
-        Time_Format = time.strftime("%Y-%m-%d %H:%M:%S",
-                                    time.gmtime(time.time()))
+        Time_Format = time.time()
         if self.dicc_Data:
             for user in self.dicc_Data:
                 tiempo = self.dicc_Data[user][3]
-                dicc_Temp[user] = tiempo[9:]
+                dicc_Temp[user] = tiempo
             for user in dicc_Temp:
                 if dicc_Temp[user] < Time_Format:
                     del self.dicc_Data[user]
@@ -155,9 +148,7 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
 
     def register(self, DATA):
         nonce = "89898347853"
-        Time_Format = time.strftime("%Y-%m-%d %H:%M:%S",
-                                    time.gmtime(time.time()))
-
+        Time_Format = time.time()
 
         self.read_passwd()
         ip = self.client_address[0]
@@ -166,12 +157,12 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
         proxy_log.action_received(ip, port, " ".join(DATA))
         if user in self.dicc_Data:
             tiempo_exp = float(DATA[4]) + time.time()
-            tiempo_exp = time.strftime("%Y-%m-%d %H:%M:%S",
-                                       time.gmtime(tiempo_exp))
+            # tiempo_exp = time.strftime("%Y-%m-%d %H:%M:%S",
+            #                           time.gmtime(tiempo_exp))
             print(" ".join(DATA), "\r\n\r\n")
             self.dicc_Data[user] = (ip, port,
-                                    "Date Register: " + Time_Format,
-                                    "Expires: " + tiempo_exp)
+                                    Time_Format,
+                                    tiempo_exp)
             self.update_database()
             self.wfile.write(b"SIP/2.0 200 OK\r\n\r\n")
         else:
@@ -190,31 +181,33 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
                 elif int(DATA[4]) >= 0:
                     print(" ".join(DATA), "\r\n\r\n")
                     Response = ("SIP/2.0 401 Unauthorized\r\n" +
-                                "WWW Authenticate:" + "Digest nonce=" +
-                                nonce + "\r\n\r\n")
+                                "WWW-Authenticate:" + 'Digest nonce="' +
+                                nonce + '"' + "\r\n\r\n")
 
                     self.wfile.write(b"SIP/2.0 401 Unauthorized\r\n")
-                    self.wfile.write(b"WWW Authenticate:" +
-                                     b"Digest nonce=" + bytes(nonce, "utf-8"))
+                    self.wfile.write(b"WWW-Authenticate:" +
+                                     b'Digest nonce="' + bytes(nonce, "utf-8") +
+                                     b'"')
                     self.wfile.write(b"\r\n\r\n")
                     proxy_log.action_send(ip, port, Response)
             elif len(DATA) == 8:
                 client_digest = DATA[7].split("=")[1]
                 tiempo_exp = float(DATA[4]) + time.time()
-                tiempo_exp = time.strftime("%Y-%m-%d %H:%M:%S",
-                                           time.gmtime(tiempo_exp))
+                # tiempo_exp = time.strftime("%Y-%m-%d %H:%M:%S",
+                #                           time.gmtime(tiempo_exp))
                 print(" ".join(DATA), "\r\n\r\n")
                 digest = self.check_passwd(user, nonce)
                 if digest == client_digest:
                     self.dicc_Data[user] = (self.client_address[0],
                                             port,
-                                            "Time Register: " + Time_Format,
-                                            "Expires: " + tiempo_exp)
+                                            Time_Format,
+                                            tiempo_exp)
                     self.update_database()
                     self.wfile.write(b"SIP/2.0 200 OK\r\n\r\n")
                     proxy_log.action_received(ip, port, " ".join(DATA))
                 else:
                     self.wfile.write(b"SIP/2.0 401 Unauthorized\r\n\r\n")
+
     def invite(self, DATA):
 
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
@@ -303,7 +296,7 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
         """
 
         DATA = []
-        # self.read_database()
+        self.read_database()
         self.check_server()
         # print(self.dicc_Data)
         for line in self.rfile:

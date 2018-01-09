@@ -166,7 +166,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
     elif Recieve[1] == "401":
         logger.action_received(Proxy_Ip, Proxy_Port, data.decode("utf-8"))
         my_socket.connect((Proxy_Ip, Proxy_Port))
-        nonce = Recieve[4].split("=")[1]
+        nonce = Recieve[3].split('"')[1]
         register_with_nonce(nonce)
         data = my_socket.recv(1024)
         print(data.decode('utf-8'))
