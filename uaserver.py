@@ -39,6 +39,7 @@ class EchoHandler(socketserver.DatagramRequestHandler):
     Echo server class
     """
     dicc_Data = {}
+    rtp_data = {}
 
     def Comprobar_Peticion(self, DATA):
         check = False
@@ -53,18 +54,18 @@ class EchoHandler(socketserver.DatagramRequestHandler):
 
     def handle(self):
 
-        user_to_send_ip = ""
-        user_audio_port = ""
         line = self.rfile.read()
         print(line.decode('utf-8'))
         # logger_data.action_received()
         if line:
             DATA = line.decode('utf-8').split(" ")
+            # print(DATA)
             if self.Comprobar_Peticion(DATA):
                 if DATA[0] == "INVITE":
-                    user_to_send_ip = DATA[4].split("\n")[0]
-                    user_audio_port = DATA[5]
-#                   logger_data.action_received()
+                    self.rtp_data["1"] = [DATA[4].split("\r\n")[0], DATA[5]]
+                    print(self.rtp_data["1"][0])
+                    #self.user_audio_port = DATA[5]
+                    # logger_data.action_received()
                     self.wfile.write(b"SIP/2.0 100 Trying\r\n\r\n")
                     self.wfile.write(b"SIP/2.0 180 Ringing\r\n\r\n")
                     self.wfile.write(b"SIP/2.0 200 OK\r\n")
@@ -72,9 +73,10 @@ class EchoHandler(socketserver.DatagramRequestHandler):
                 elif DATA[0] == "BYE":
                     self.wfile.write(b"SIP/2.0 200 OK\r\n\r\n")
                 elif DATA[0] == "ACK":
-                    aEjecutar = ("./mp32rtp -i " + user_to_send_ip +
-                                 " -p " + user_audio_port)
+                    aEjecutar = ("./mp32rtp -i " + self.rtp_data["1"][0] +
+                                 " -p " + self.rtp_data["1"][1])
                     aEjecutar += " < " + fichero_audio
+                    # print(aEjecutar)
                     os.system(aEjecutar)
                 elif DATA[0] != ("INVITE" or "ACK" or "BYE"):
                     self.wfile.write(b"SIP/2.0 405 Method Not Allowed\r\n\r\n")

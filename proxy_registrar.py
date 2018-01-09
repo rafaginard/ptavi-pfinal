@@ -1,11 +1,12 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 """
-Clase (y programa principal) para un servidor de eco en UDP simple
+Programa principal de un Proxy_Registrar
 """
 
 from xml.sax import make_parser
 from xml.sax.handler import ContentHandler
+import hashlib
 import json
 import socketserver
 import socket
@@ -84,6 +85,15 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
     Echo server class
     """
     dicc_Data = {}
+    passwd_data = {}
+
+    def read_passwd(self):
+
+        with open(passwd_database, "r") as data_file:
+            for line in data_file:
+                key = line.split(" ")[0]
+                value = line.split(" ")[1]
+                self.passwd_data[key] = value
 
     def update_database(self):
         """
@@ -120,6 +130,13 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
         except (NameError, FileNotFoundError):
             pass
 
+    def check_passwd(self, user, nonce):
+
+        contra = self.passwd_data[user]
+        h = hashlib.sha1(bytes(contra, "utf-8"))
+        h.update(bytes(nonce + "\r\n\r\n" , "utf-8"))
+        return h.hexdigest()
+
     def check_server(self):
         """
         Comprueba los usuarios caducados
@@ -137,10 +154,12 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
             self.update_database()
 
     def register(self, DATA):
-        nonce = b"898989898798989898989"
+        nonce = "89898347853"
         Time_Format = time.strftime("%Y-%m-%d %H:%M:%S",
                                     time.gmtime(time.time()))
 
+
+        self.read_passwd()
         ip = self.client_address[0]
         user = DATA[1].split(":")[1]
         port = DATA[1].split(":")[2]
@@ -172,26 +191,30 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
                     print(" ".join(DATA), "\r\n\r\n")
                     Response = ("SIP/2.0 401 Unauthorized\r\n" +
                                 "WWW Authenticate:" + "Digest nonce=" +
-                                nonce.decode("utf-8") + "\r\n\r\n")
+                                nonce + "\r\n\r\n")
 
                     self.wfile.write(b"SIP/2.0 401 Unauthorized\r\n")
                     self.wfile.write(b"WWW Authenticate:" +
-                                     b"Digest nonce=" + nonce)
+                                     b"Digest nonce=" + bytes(nonce, "utf-8"))
                     self.wfile.write(b"\r\n\r\n")
                     proxy_log.action_send(ip, port, Response)
             elif len(DATA) == 8:
+                client_digest = DATA[7].split("=")[1]
                 tiempo_exp = float(DATA[4]) + time.time()
                 tiempo_exp = time.strftime("%Y-%m-%d %H:%M:%S",
                                            time.gmtime(tiempo_exp))
                 print(" ".join(DATA), "\r\n\r\n")
-                self.dicc_Data[user] = (self.client_address[0],
-                                        port,
-                                        "Time Register: " + Time_Format,
-                                        "Expires: " + tiempo_exp)
-                self.update_database()
-                self.wfile.write(b"SIP/2.0 200 OK\r\n\r\n")
-                proxy_log.action_received(ip, port, " ".join(DATA))
-
+                digest = self.check_passwd(user, nonce)
+                if digest == client_digest:
+                    self.dicc_Data[user] = (self.client_address[0],
+                                            port,
+                                            "Time Register: " + Time_Format,
+                                            "Expires: " + tiempo_exp)
+                    self.update_database()
+                    self.wfile.write(b"SIP/2.0 200 OK\r\n\r\n")
+                    proxy_log.action_received(ip, port, " ".join(DATA))
+                else:
+                    self.wfile.write(b"SIP/2.0 401 Unauthorized\r\n\r\n")
     def invite(self, DATA):
 
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:

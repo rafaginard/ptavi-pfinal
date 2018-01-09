@@ -3,7 +3,8 @@
 
 from xml.sax import make_parser
 from xml.sax.handler import ContentHandler
-from proxy_registrar import Logger
+from proxy_registrar import Logger, SIPRegisterHandler
+import hashlib
 import json
 import socket
 import sys
@@ -53,14 +54,17 @@ def register():
     logger.action_send(Proxy_Ip, Proxy_Port, DATA)
 
 
-def register_with_nonce():
+def register_with_nonce(nonce):
     """
     Responde al 401 y autoriza el registro
     """
-    nonce = "123123212312321212123"
+    h = hashlib.sha1(bytes(User_Passwd + "\n", "utf-8"))
+    h.update(bytes(nonce, "utf-8"))
+    digest = h.hexdigest()
     DATA = ("REGISTER sip:" + User_Name + ":" + str(Port) + " SIP/2.0\r\n" +
             "Expires: " + EXPIRES + "\r\n\r\n" +
-            "Authorization: Digest response=" + nonce + "\r\n\r\n")
+            "Authorization: Digest response=" + digest +
+            "\r\n\r\n")
     my_socket.send(bytes(DATA, "utf-8"))
     logger.action_send(Proxy_Ip, Proxy_Port, DATA)
 
@@ -100,6 +104,7 @@ if __name__ == "__main__":
     Server = cHandler.config["uaserver_ip"]
     Port = int(cHandler.config["uaserver_puerto"])
     User_Name = cHandler.config["account_username"]
+    User_Passwd = cHandler.config["account_passwd"]
     Audio_Puerto = cHandler.config["rtpaudio_puerto"]
     fichero_audio = cHandler.config["audio_path"]
     file_log = cHandler.config["log_path"]
@@ -161,7 +166,8 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
     elif Recieve[1] == "401":
         logger.action_received(Proxy_Ip, Proxy_Port, data.decode("utf-8"))
         my_socket.connect((Proxy_Ip, Proxy_Port))
-        register_with_nonce()
+        nonce = Recieve[4].split("=")[1]
+        register_with_nonce(nonce)
         data = my_socket.recv(1024)
         print(data.decode('utf-8'))
     else:

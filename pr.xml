@@ -1,5 +1,5 @@
 <config>
     <server name="MiServidorPro" ip="" puerto="4567"/>
-    <database path="database.txt" passwdpath="passwords"/>
+    <database path="database.txt" passwdpath="passwords.txt"/>
     <log path="proxylog.txt"/>
 </config>

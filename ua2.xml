@@ -1,5 +1,5 @@
 <config>
-    <account username="maca@god" passwd="maca"/>
+    <account username="maca@god" passwd="54321"/>
     <uaserver ip="127.0.0.1" puerto="6666"/>
     <rtpaudio puerto="6543"/>
     <regproxy ip="" puerto="4567"/>
