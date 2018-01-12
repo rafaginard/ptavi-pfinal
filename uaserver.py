@@ -56,7 +56,7 @@ class EchoHandler(socketserver.DatagramRequestHandler):
 
         line = self.rfile.read()
         print(line.decode('utf-8'))
-        # logger_data.action_received()
+        logger_data.action_received(Proxy_Ip, Proxy_Port, line.decode("utf-8"))
         if line:
             DATA = line.decode('utf-8').split(" ")
             # print(DATA)
@@ -64,24 +64,35 @@ class EchoHandler(socketserver.DatagramRequestHandler):
                 if DATA[0] == "INVITE":
                     self.rtp_data["1"] = [DATA[4].split("\r\n")[0], DATA[5]]
                     print(self.rtp_data["1"][0])
-                    #self.user_audio_port = DATA[5]
-                    # logger_data.action_received()
                     self.wfile.write(b"SIP/2.0 100 Trying\r\n\r\n")
+                    Message = "SIP/2.0 100 Trying\r\n\r\n"
+                    logger_data.action_send(Proxy_Ip, Proxy_Port, Message)
                     self.wfile.write(b"SIP/2.0 180 Ringing\r\n\r\n")
+                    Message = "SIP/2.0 180 Ringing\r\n\r\n"
+                    logger_data.action_send(Proxy_Ip, Proxy_Port, Message)
                     self.wfile.write(b"SIP/2.0 200 OK\r\n")
                     self.wfile.write(sdp_message)
+                    Message = "SIP/2.0 200 OK\r\n" + sdp_message.decode("utf-8")
+                    logger_data.action_send(Proxy_Ip, Proxy_Port, Message)
                 elif DATA[0] == "BYE":
                     self.wfile.write(b"SIP/2.0 200 OK\r\n\r\n")
+                    Message = "SIP/2.0 200 OK\r\n\r\n"
+                    logger_data.action_send(Proxy_Ip, Proxy_Port, Message)
                 elif DATA[0] == "ACK":
                     aEjecutar = ("./mp32rtp -i " + self.rtp_data["1"][0] +
                                  " -p " + self.rtp_data["1"][1])
                     aEjecutar += " < " + fichero_audio
-                    # print(aEjecutar)
                     os.system(aEjecutar)
+                    Message = "Enviando datos"
+                    logger_data.action_send(Proxy_Ip, Proxy_Port, Message)
                 elif DATA[0] != ("INVITE" or "ACK" or "BYE"):
                     self.wfile.write(b"SIP/2.0 405 Method Not Allowed\r\n\r\n")
+                    Message = "SIP/2.0 405 Method Not Allowed"
+                    logger_data.action_error(Message)
             else:
                 self.wfile.write(b"SIP/2.0 400 Bad Request\r\n\r\n")
+                Message = "SIP/2.0 400 Bad Request"
+                logger_data.action_error(Message)
         if not line:
             pass
 
@@ -97,6 +108,11 @@ if __name__ == "__main__":
 
     SERVER = cHandler.config["uaserver_ip"]
     PORT = int(cHandler.config["uaserver_puerto"])
+    if cHandler.config["regproxy_ip"] == "":
+        Proxy_Ip = "127.0.0.1"
+    else:
+        Proxy_Ip = cHandler.config["regproxy_ip"]
+    Proxy_Port = int(cHandler.config["regproxy_puerto"])
     User_Name = cHandler.config["account_username"]
     Audio_Puerto = cHandler.config["rtpaudio_puerto"]
     sdp_data = ("Content-Type: application/sdp\r\n\r\n" +

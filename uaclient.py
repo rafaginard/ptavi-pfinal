@@ -144,7 +144,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
         Recieve = data.decode('utf-8').split(" ")
     except ConnectionRefusedError:
         action = "No server listening at "
-        logger.action_error(Proxy_Ip, Proxy_Port, action)
+        logger.action_error_server(Proxy_Ip, Proxy_Port, action)
         sys.exit("Server is not listening")
 
     if Recieve[1] == "200":
