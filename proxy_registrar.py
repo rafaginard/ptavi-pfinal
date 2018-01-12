@@ -56,11 +56,15 @@ class Logger():
                   Message.replace("\r\n", " "))
         self.write_in_log(action + "\r")
 
-    def action_error(self, Ip, Port, Message):
+    def action_error_server(self, Ip, Port, Message):
         actual_time = self.get_time()
         action = (actual_time + Message + Ip + " port " + str(Port))
         self.write_in_log(action + "\r")
 
+    def action_error(self, Message):
+        actual_time = self.get_time()
+        action = (actual_time + Message)
+        self.write_in_log(action + "\r")
 
 class XMLHandler(ContentHandler):
 
@@ -99,10 +103,9 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
         """
         Convierte mi biblioteca de datos a un archivo json
         """
+
         with open(database, "w") as data_file:
-            for k, v in self.dicc_Data.items():
-                data_file.write(str(k) + "---> " +
-                                str(v) + "\r")
+            json.dump(self.dicc_Data, data_file)
 
     def read_database(self):
         """
@@ -111,17 +114,8 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
         """
         try:
             with open(database, "r") as data_file:
-                for line in data_file:
-                    key = line.split("--->")[0]
-                    Values = line.split("--->")[1]
-                    V = Values.split(",")
-                    ip = V[0].split("(")[1]
-                    port = V[1]
-                    time_register = V[2]
-                    time_expired = V[3].split(")")[0]
-                    self.dicc_Data[key] = (ip, port, float(time_register),
-                                           float(time_expired))
-        except (NameError, FileNotFoundError):
+                self.dicc_Data = json.load(data_file)
+        except:
             pass
 
     def check_passwd(self, user, nonce):
@@ -218,32 +212,35 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
                 _who_invites_port = self.dicc_Data.get(_who_invites)[1]
                 audio_port = DATA[11]
                 proxy_log.action_received(_who_invites_ip, _who_invites_port, " ".join(DATA))
+    
+                if _to_send in self.dicc_Data:
+                    _to_send_ip = self.dicc_Data.get(_to_send)[0]
+                    _to_send_port = self.dicc_Data.get(_to_send)[1]
+                    my_socket.connect((_to_send_ip, int(_to_send_port)))
 
-                _to_send_ip = self.dicc_Data.get(_to_send)[0]
-                _to_send_port = self.dicc_Data.get(_to_send)[1]
-                my_socket.connect((_to_send_ip, int(_to_send_port)))
-                Invitation = ("INVITE sip:" + _to_send + " SIP/2.0\r\n" +
-                              "Content-Type: application/sdp\r\n\r\n" +
-                              "v=0\r\no=" + _who_invites + " " +
-                              _who_invites_ip + "\r\ns=misesion" +
-                              "\r\nt=0\r\nm=audio " + audio_port + " RTP")
-                my_socket.send(bytes(Invitation, "utf-8"))
-                proxy_log.action_send(_to_send_ip, _to_send_port, Invitation)
-                print(Invitation)
+                    Invitation = ("INVITE sip:" + _to_send + " SIP/2.0\r\n" +
+                                  "Content-Type: application/sdp\r\n\r\n" +
+                                  "v=0\r\no=" + _who_invites + " " +
+                                  _who_invites_ip + "\r\ns=misesion" +
+                                  "\r\nt=0\r\nm=audio " + audio_port + " RTP")
+                    my_socket.send(bytes(Invitation, "utf-8"))
+                    proxy_log.action_send(_to_send_ip, _to_send_port, Invitation)
+                    print(Invitation)
 
-                data = my_socket.recv(1024)
-                new_data = data.decode("utf-8")
-                Recieve = data.decode('utf-8').split(" ")
-                proxy_log.action_received(_to_send_ip, _to_send_port, new_data)
-                # print(Recieve)
+                    data = my_socket.recv(1024)
+                    new_data = data.decode("utf-8")
+                    Recieve = data.decode('utf-8').split(" ")
+                    proxy_log.action_received(_to_send_ip, _to_send_port, new_data)
 
-                print(data.decode("utf-8"))
-                if Recieve[1] == "100":
-                    self.wfile.write(data)
+                    print(data.decode("utf-8"))
+                    if Recieve[1] == "100":
+                        self.wfile.write(data)
+                else:
+                    self.wfile.write(b"SIP/2.0 404 User Not Found\r\n\r\n")
             except (TypeError, ConnectionRefusedError):
+                action = "SIP/2.0 404 User Not Found"
+                proxy_log.action_error(action)
                 self.wfile.write(b"SIP/2.0 404 User Not Found\r\n\r\n")
-                action = "No server listening at "
-                proxy_log.action_error(_to_send_ip, _to_send_port, action)
 
     def ack(self, DATA):
 
