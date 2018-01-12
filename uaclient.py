@@ -40,6 +40,8 @@ def send_mp3():
     aEjecutar += " < " + fichero_audio
     os.system(aEjecutar)
     DATA = "Enviando fichero de audio."
+    order = "cvlc rtp://@127.0.0.1:" + Audio_Puerto
+    os.system(order)
     logger.action_send(user_to_send_ip, user_audio_port, DATA)
 
 
@@ -159,10 +161,6 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
         my_socket.connect((Proxy_Ip, Proxy_Port))
         ack()
         send_mp3()
-        bye()
-        data = my_socket.recv(1024)
-        logger.action_received(Proxy_Ip, Proxy_Port, data.decode("utf-8"))
-        print(data.decode("utf-8"))
     elif Recieve[1] == "401":
         logger.action_received(Proxy_Ip, Proxy_Port, data.decode("utf-8"))
         my_socket.connect((Proxy_Ip, Proxy_Port))

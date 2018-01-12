@@ -66,6 +66,7 @@ class Logger():
         action = (actual_time + Message)
         self.write_in_log(action + "\r")
 
+
 class XMLHandler(ContentHandler):
 
     def __init__(self):
@@ -179,8 +180,8 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
                                 nonce + '"' + "\r\n\r\n")
 
                     self.wfile.write(b"SIP/2.0 401 Unauthorized\r\n")
-                    self.wfile.write(b"WWW-Authenticate:" +
-                                     b'Digest nonce="' + bytes(nonce, "utf-8") +
+                    self.wfile.write(b"WWW-Authenticate:" + b'Digest nonce="' +
+                                     bytes(nonce, "utf-8") +
                                      b'"')
                     self.wfile.write(b"\r\n\r\n")
                     proxy_log.action_send(ip, port, Response)
@@ -211,26 +212,27 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
                 _who_invites_ip = DATA[7]
                 _who_invites_port = self.dicc_Data.get(_who_invites)[1]
                 audio_port = DATA[11]
-                proxy_log.action_received(_who_invites_ip, _who_invites_port, " ".join(DATA))
-    
+                proxy_log.action_received(_who_invites_ip, _who_invites_port,
+                                          " ".join(DATA))
+
                 if _to_send in self.dicc_Data:
                     _to_send_ip = self.dicc_Data.get(_to_send)[0]
                     _to_send_port = self.dicc_Data.get(_to_send)[1]
                     my_socket.connect((_to_send_ip, int(_to_send_port)))
 
-                    Invitation = ("INVITE sip:" + _to_send + " SIP/2.0\r\n" +
-                                  "Content-Type: application/sdp\r\n\r\n" +
-                                  "v=0\r\no=" + _who_invites + " " +
-                                  _who_invites_ip + "\r\ns=misesion" +
-                                  "\r\nt=0\r\nm=audio " + audio_port + " RTP")
-                    my_socket.send(bytes(Invitation, "utf-8"))
-                    proxy_log.action_send(_to_send_ip, _to_send_port, Invitation)
-                    print(Invitation)
+                    Invit = ("INVITE sip:" + _to_send + " SIP/2.0\r\n" +
+                             "Content-Type: application/sdp\r\n\r\n" +
+                             "v=0\r\no=" + _who_invites + " " +
+                             _who_invites_ip + "\r\ns=misesion" +
+                             "\r\nt=0\r\nm=audio " + audio_port + " RTP")
+                    my_socket.send(bytes(Invit, "utf-8"))
+                    proxy_log.action_send(_to_send_ip, _to_send_port, Invit)
+                    print(Invit)
 
                     data = my_socket.recv(1024)
-                    new_data = data.decode("utf-8")
                     Recieve = data.decode('utf-8').split(" ")
-                    proxy_log.action_received(_to_send_ip, _to_send_port, new_data)
+                    proxy_log.action_received(_to_send_ip, _to_send_port,
+                                              data.decode('utf-8'))
 
                     print(data.decode("utf-8"))
                     if Recieve[1] == "100":

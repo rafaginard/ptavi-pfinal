@@ -72,7 +72,8 @@ class EchoHandler(socketserver.DatagramRequestHandler):
                     logger_data.action_send(Proxy_Ip, Proxy_Port, Message)
                     self.wfile.write(b"SIP/2.0 200 OK\r\n")
                     self.wfile.write(sdp_message)
-                    Message = "SIP/2.0 200 OK\r\n" + sdp_message.decode("utf-8")
+                    s = sdp_message.decode("utf-8")
+                    Message = "SIP/2.0 200 OK\r\n" + s
                     logger_data.action_send(Proxy_Ip, Proxy_Port, Message)
                 elif DATA[0] == "BYE":
                     self.wfile.write(b"SIP/2.0 200 OK\r\n\r\n")
